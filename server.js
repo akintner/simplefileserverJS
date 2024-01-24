@@ -114,7 +114,7 @@ function waitForChanges(since, res){
 
 var changes = [];
 function registerChange(title){
-  changes.push({titile: title, time: Date.now()});
+  changes.push({titile: title, serverTime: Date.now()});
   waiting.forEach(function(waiter){
     sendTalks(getChangedTalks(waiter.since), waiter.res)
   });
