@@ -19,26 +19,12 @@ function respondJSON(res,status,data){
 
 var talks = Object.create(null);
 
-router.add("GET", /^\/talks\/([^\/]+)$/, function(req,res,title){
-  var query = require("url").parse(req.url, true).query;
-  if (query.changesSince == null){
-    var list = [];
-    for (var title in talks) {
-      list.push(talks[title]);
-      sendTalks(list, res);
-    } 
-  } else {
-    var since = Number(query.changesSince);
-    if (NaN(since)) {
-      respond(res, 400, "Inavlid paramater");
-    } else {
-      var changed = getChangedTalks(since);
-      if (changed.length >0)
-        sendTalks(changed, res)
-      else
-      waitForChanges(since, res);
-    }
-  }
+router.add("GET", /^\/talks\/([^\/]+)$/,
+           function(req, res, title) {
+  if (title in talks)
+    respondJSON(res, 200, talks[title]);
+  else
+    respond(res, 404, "No talk '" + title + "' found");
 });
 
 router.add("DELETE", /^\/talks\/([^\/]+)$/, function(req,res,title){
@@ -48,6 +34,22 @@ router.add("DELETE", /^\/talks\/([^\/]+)$/, function(req,res,title){
   }
   respond(res, 204, null)
 });
+
+function readStreamAsJSON(stream, callback) {
+  var data = "";
+  stream.on("data", function(chunk) {
+    data += chunk;
+  });
+  stream.on("end", function() {
+    var result, error;
+    try { result = JSON.parse(data); }
+    catch (e) { error = e; }
+    callback(error, result);
+  });
+  stream.on("error", function(error) {
+    callback(error);
+  });
+}
 
 router.add("PUT", /^\/talks\/([^\/]+)$/, function(req,res,title){
   readStreamAsJSON(req, function(err, talk){
@@ -79,25 +81,30 @@ router.add("POST", /^\/talks\/([^\/]+)\/comments$/, function(req,res,title){
   });
 });
 
-function readStreamAsJSON(stream, callback){
-  var data = [];
-  stream.on("data", function(chunk){
-    data += chunk;
-  });
-  stream.on("end", function(){
-    var result, error;
-    try {result = JSON.parse(data);}
-    catch (e) {error = e;}
-    callback(error, result);
-  });
-  stream.on("error", function(error){
-    callback(error);
-  });
-}
-
 function sendTalks(talks, res){
   respondJSON(res, 200, {serverTime: Date.now(), talks: talks});
 }
+
+router.add("GET", /^\/talks$/, function(request, response) {
+  var query = require("url").parse(request.url, true).query;
+  if (query.changesSince == null) {
+    var list = [];
+    for (var title in talks)
+      list.push(talks[title]);
+    sendTalks(list, response);
+  } else {
+    var since = Number(query.changesSince);
+    if (isNaN(since)) {
+      respond(response, 400, "Invalid parameter");
+    } else {
+      var changed = getChangedTalks(since);
+      if (changed.length > 0)
+         sendTalks(changed, response);
+      else
+        waitForChanges(since, response);
+    }
+  }
+});
 
 var waiting = [];
 function waitForChanges(since, res){
@@ -118,6 +125,7 @@ function registerChange(title){
   waiting.forEach(function(waiter){
     sendTalks(getChangedTalks(waiter.since), waiter.res)
   });
+  waiting = [];
 }
 
 function getChangedTalks(since){
