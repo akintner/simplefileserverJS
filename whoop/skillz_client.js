@@ -44,37 +44,57 @@ function displayTalks(talks) {
       }
     } else {
       var node = drawTalk(talk);
-      if (shown)
+      if (shown) {
+        var textField = shown.querySelector("input");
+        var hasFocus = document.activeElement == textField;
+        var value = textField.value;
         talkDiv.replaceChild(node, shown);
-      else
+        var newTextField = node.querySelector("input");
+        newTextField.value = value;
+        if (hasFocus) newTextField.focus();
+      } else {
         talkDiv.appendChild(node);
+      }
       shownTalks[talk.title] = node;
     }
   });
 }
 
-function instantiateTemplate(name, values) {
-  function instantiateText(text) {
+function instantiateTemplate(template, values) {
+  function instantiateText(text, values) {
     return text.replace(/\{\{(\w+)\}\}/g, function(_, name) {
       return values[name];
     });
   }
-  function instantiate(node) {
+  function attr(node, attrName) {
+    return node.nodeType == document.ELEMENT_NODE &&
+      node.getAttribute(attrName);
+  }
+  function instantiate(node, values) {
     if (node.nodeType == document.ELEMENT_NODE) {
       var copy = node.cloneNode();
-      for (var i = 0; i < node.childNodes.length; i++)
-        copy.appendChild(instantiate(node.childNodes[i]));
+      for (var i = 0; i < node.childNodes.length; i++) {
+        var child = node.childNodes[i];
+
+        var when = attr(child, "template-when"), unless = attr(child, "template-unless");
+        if (when && !values[when] || unless && values[unless])
+          continue;
+
+        var repeat = attr(child, "template-repeat");
+        if (repeat)
+          (values[repeat] || []).forEach(function(element) {
+            copy.appendChild(instantiate(child, element));
+          });
+        else
+          copy.appendChild(instantiate(child, values));
+      }
       return copy;
     } else if (node.nodeType == document.TEXT_NODE) {
-      return document.createTextNode(
-               instantiateText(node.nodeValue));
-    } else {
-      return node;
+      return document.createTextNode(instantiateText(node.nodeValue, values));
     }
   }
 
-  var template = document.querySelector("#template ." + name);
-  return instantiate(template);
+  return instantiate(template, values);
 }
 
 function drawTalk(talk) {
