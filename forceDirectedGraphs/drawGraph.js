@@ -17,10 +17,9 @@ Object.defineProperty(Vector.prototype, "length", {
   }
 });
 
-// Since we will want to inspect the layouts our code produces, let's
-// first write code to draw a graph onto a canvas. Since we don't know
-// in advance how big the graph is, the `Scale` object computes a
-// scale and offset so that all nodes fit onto the given canvas.
+//Since we will want to inspect the layouts our code produces, let's first write code to draw a graph onto a 
+//canvas. Since we don't know in advance how big the graph is, the `Scale` object computes a scale and 
+//offset so that all nodes fit onto the given canvas.
 var nodeSize = 8;
 function drawGraph(graph) {
   var canvas = document.querySelector("canvas");
